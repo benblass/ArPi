@@ -3,7 +3,7 @@
 import wx
 import math
 
-import multiprocessing as mp
+import threading
 import time
 import random
 import math
@@ -59,7 +59,6 @@ class radarGraph(wx.Panel):
 	Speed = 100
 	ID_TIMER = 1
 
-
 	def __init__(self, parent, maxscale, minscale):
 		self.maxscale = maxscale #signal which will show contact (at "1" on the graph)
 		self.minscale = minscale #signal which will show at the limit of the graph (10)
@@ -102,7 +101,7 @@ class radarGraph(wx.Panel):
 		self.DrawAxis(dc)
 		self.DrawGrid(dc)
 		self.DrawMarker(dc)
-		#self.DrawCoords(dc)
+		self.DrawData(dc)
 
 		dc.DestroyClippingRegion()
 
@@ -140,12 +139,13 @@ class radarGraph(wx.Panel):
 
 		dc.DrawCircle(0,0,self.radar_radius*2*self.rot)
 
-
-
 	def DrawMarker(self, dc):
 		x = self.marker.x()
 		y = self.marker.y()
 		dist = math.sqrt(x*x + y*y)
+		valueX = self.sensex.value
+		valueY = self.sensey.value
+		
 		if (dist > 1):
 			dc.SetPen(wx.Pen('#ee2222', 15, wx.SOLID))
 
@@ -163,37 +163,56 @@ class radarGraph(wx.Panel):
 			dc.SetBrush(wx.Brush('#ff0000', wx.CROSSDIAG_HATCH))
 			dc.DrawCircle(0,0,self.radar_radius)
 
+		if (valueX == 0 and valueY ==0):
+			oldfont = dc.GetFont()
+			textnosig = "NO SIGNAL"
+			font = wx.Font(50, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+			dc.SetFont(font)
+			dc.SetTextForeground((255,0,0,))
+
+			textsize = dc.GetTextExtent(textnosig)
+
+			dc.DrawText('NO SIGNAL', -textsize[0]/2, self.size_y/2)
+			dc.SetFont(oldfont)
+			dc.SetTextForeground((0,0,0))
+
 	def Change(self,event):
 
 		newXcoord, newYcoord = self.getNewData()
 		if (newXcoord != self.marker.x() or newYcoord != self.marker.y()):
 			self.marker.set(newXcoord, newYcoord)
-
 			dc = wx.PaintDC(self)
 			dc.Clear()
-
 			dc.SetDeviceOrigin(self.size_x/2, self.size_y*0.9)
 			dc.SetAxisOrientation(True, True)
-
 			region = wx.Region(0,self.size_y*0.005,self.size_x,self.size_y*0.9)
 			dc.SetClippingRegionAsRegion(region)
-
 			self.DrawAxis(dc)
 			self.DrawGrid(dc)
 			self.DrawMarker(dc)
-			#self.DrawCoords(dc)
-
+			self.DrawData(dc)
 			dc.DestroyClippingRegion()
 
 	def getNewData(self):
 
+		#newXcoord = (self.p-self.sensex.value) / self.alpha
+		#newYcoord = (self.p-self.sensey.value) / self.alpha
 		newXcoord = (self.p-self.sensex.value) / self.alpha
 		newYcoord = (self.p-self.sensey.value) / self.alpha
 
 		return newXcoord, newYcoord
 
+	def DrawData(self, dc):
+		valueX = self.sensex.value
+		valueY = self.sensey.value
+		font = dc.GetFont()
+		font.SetWeight(wx.FONTWEIGHT_BOLD)
+		dc.SetFont(font)
+		dc.DrawText('Sensor Values : X = %.3f / Y = %.3f' % (valueX, valueY), -self.size_x /2 +20, self.size_y*0.9-20)
+
+
 	def onClose(self, event):
-		self.Destroy()
+		self.GetParent().Close()
 
 class ArvaFrame(wx.Frame):
 	def __init__(self, parent,sensex,sensey,maxscale,minscale):
@@ -202,17 +221,29 @@ class ArvaFrame(wx.Frame):
 		self.sensey = sensey		
 		self.SetSize((800,800))
 		self.SetTitle('ArPi')
+
+		self.Bind(wx.EVT_CLOSE, self.onClose)
 	
-		radar = radarGraph(self,maxscale, minscale)
+		self.radar = radarGraph(self,maxscale, minscale)
 
 		self.Centre()
 		self.Show(True)
 		self.ShowFullScreen(True)
 
-	def OnQuit(self, e):
-		self.Close()
+	def onClose(self, e):
+		self.Destroy()
 
-def initgraph(sensex,sensey,maxscale, minscale):
-	arpi = wx.PySimpleApp()
-	ArvaFrame(None,sensex,sensey,maxscale, minscale)
-	arpi.MainLoop()
+
+class RadarGui(threading.Thread):
+	def __init__(self, sensex,sensey,maxscale, minscale):
+		threading.Thread.__init__(self)
+		self.setDaemon(1)
+		self.sensex = sensex
+		self.sensey = sensey
+		self.maxscale = maxscale
+		self.minscale = minscale
+
+	def run(self):
+		app = wx.PySimpleApp()
+		ArvaFrame(None,self.sensex,self.sensey,self.maxscale, self.minscale)
+		app.MainLoop()

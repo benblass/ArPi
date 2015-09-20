@@ -50,8 +50,7 @@ class top_block(gr.top_block):
                 val = self.probe.level()
                 try:
                     self.set_measure(val)
-                    self.storageval = val
-                    #print "Signal : " + str(val)
+                    self.storageval.value = val
                 except AttributeError:
                     pass
                 time.sleep(1.0 / (1))
@@ -165,3 +164,10 @@ class top_block(gr.top_block):
         self.base_freq = base_freq
         self.fcdproplus_fcdproplus_0.set_freq(self.base_freq)
         self.freq_xlating_fir_filter_xxx_0.set_center_freq(-(self.base_freq - self.target_freq))
+
+if __name__ == '__main__':
+    parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
+    (options, args) = parser.parse_args()
+    tb = top_block(None)
+    tb.start()
+    tb.wait()
