@@ -1,1 +1,16 @@
-Experiment of implemnting an ARVA-type software on raspberry PI 2
+Experimentation of an avalanche beacon dedecting RaspberryPi 2
+
+"Sensor" part of the code generated from gnu-radio Companion. Based on FuncublDongle pro+ SDR.
+The Gui part using wxPython module
+
+Main file ArPi.py.
+Calibration is done by setting the variables maxscale and minscale.
+maxscale: amplitude value from which the scope will show "found"
+minscale: amplitude value from wich the scope will not show the marker (should be consistent with the "threshold" value set in the gnuradio flowgraph for burst detection)
+
+Sensing is started in a standalone process, values shared with other threads on a shared ctype.
+Gui is a dedicated thread.
+
+
+
+So far tested on Debian Jessy / x86, no other platform.
